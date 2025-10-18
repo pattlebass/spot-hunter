@@ -14,7 +14,29 @@ const craiovaBounds = L.latLngBounds(
 	[44.277779832389044, 23.86410630191919]
 );
 
-const userMarker = L.marker([44.3148, 23.7971]);
+// Icons
+var markerIcon = L.icon({
+	iconUrl: "/static/images/spot-icon.png",
+	shadowUrl: "/static/images/spot-shadow.png",
+
+	iconSize: [48, 48], // size of the icon
+	iconAnchor: [24, 48], // point of the icon which will correspond to marker's location
+	shadowSize: [41, 41], // size of the shadow
+	shadowAnchor: [10, 40], // the same for the shadow
+	// popupAnchor: [-3, -76], // point from which the popup should open relative to the iconAnchor
+});
+var userMarkerIcon = L.icon({
+	iconUrl: "/static/images/user-marker-icon.png",
+	// shadowUrl: "/static/images/spot-shadow.png",
+
+	iconSize: [24, 24], // size of the icon
+	iconAnchor: [12, 12], // point of the icon which will correspond to marker's location
+	shadowSize: [41, 41], // size of the shadow
+	shadowAnchor: [10, 40], // the same for the shadow
+	// popupAnchor: [-3, -76], // point from which the popup should open relative to the iconAnchor
+});
+
+const userMarker = L.marker([44.3148, 23.7971], { icon: userMarkerIcon });
 let map;
 let positionWatchId;
 
@@ -52,16 +74,18 @@ function initMap() {
 		maxBoundsViscosity: 0.5,
 	}).setView([userMarker._latlng.lat, userMarker._latlng.lng], 13);
 
-	L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+	L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+		attribution:
+			'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+		subdomains: "abcd",
 		minZoom: 13,
-		attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 	}).addTo(map);
 
 	userMarker.addTo(map);
 
 	// Waypoints + cultural locations
 	culturalLocations.forEach((loc) => {
-		const marker = L.marker([loc.lat, loc.lon]).addTo(map);
+		const marker = L.marker([loc.lat, loc.lon], { icon: markerIcon }).addTo(map);
 
 		marker.on("click", () => {
 			openChat(loc.name);
@@ -126,6 +150,6 @@ socket.on("receive_message", (data) => {
 
 function refreshLocation(pos) {
 	userMarker.setLatLng([pos.coords.latitude, pos.coords.longitude]);
-	map.setView([userMarker._latlng.lat, userMarker._latlng.lng], map.getZoom());
+	// map.setView([userMarker._latlng.lat, userMarker._latlng.lng], map.getZoom());
 	console.log("Location updated:", pos.coords.latitude, pos.coords.longitude);
 }
