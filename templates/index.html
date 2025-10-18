@@ -10,24 +10,23 @@
 	<body>
 		<div class="map-container">
 			<div id="map"></div>
-			<nav class="navbar">
-				<ul class="nav-list">
-					<li>
-						<input type="radio" name="nav" id="tab-map" checked hidden />
-						<label for="tab-map">Map</label>
-					</li>
-					<li>
-						<input type="radio" name="nav" id="tab-leaderboard" hidden />
-						<label for="tab-leaderboard">Leaderboard</label>
-					</li>
-					<li>
-						<input type="radio" name="nav" id="tab-you" hidden />
-						<label for="tab-you">You</label>
-					</li>
-				</ul>
-			</nav>
 		</div>
-		<script src="/static/js/socket.io.min.js"></script>
+		<nav class="navbar">
+			<ul class="nav-list">
+				<li>
+					<input type="radio" name="nav" id="tab-map" checked hidden />
+					<label for="tab-map">Map</label>
+				</li>
+				<li>
+					<input type="radio" name="nav" id="tab-leaderboard" hidden />
+					<label for="tab-leaderboard">Leaderboard</label>
+				</li>
+				<li>
+					<input type="radio" name="nav" id="tab-you" hidden />
+					<label for="tab-you">You</label>
+				</li>
+			</ul>
+		</nav>
 		<script src="/static/js/leaflet.js" crossorigin=""></script>
 		<script src="/static/js/map-view.js"></script>
 	</body>

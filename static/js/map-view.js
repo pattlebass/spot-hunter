@@ -1,17 +1,11 @@
+const mapContainer = document.getElementsByClassName("map-container")[0];
+const navbar = document.getElementsByClassName("navbar")[0];
 const mapButton = document.getElementById("tab-map");
 const leaderboardButton = document.getElementById("tab-leaderboard");
 const profileButton = document.getElementById("tab-you");
 
-const socket = io();
-const culturalLocations = [
-	{ name: "Muzeul Olteniei", lat: 44.3148, lon: 23.7971 },
-	{ name: "Muzeul de Artă Craiova", lat: 44.3165, lon: 23.8018 },
-	{ name: "Catedrala Sfântul Dumitru", lat: 44.326, lon: 23.794 },
-	{ name: "Stadionul Ion Oblemenco", lat: 44.3273, lon: 23.7986 },
-	{ name: "Grădina Botanică Craiova", lat: 44.3278, lon: 23.7961 },
-];
-const visitedPoints = [];
-const username = "Iustin";
+const culturalLocations = [];
+let userData = {};
 
 const craiovaBounds = L.latLngBounds(
 	[44.35745809206229, 23.733475785989047],
@@ -21,6 +15,16 @@ const craiovaBounds = L.latLngBounds(
 // Icons
 var markerIcon = L.icon({
 	iconUrl: "/static/images/spot-icon.png",
+	shadowUrl: "/static/images/spot-shadow.png",
+
+	iconSize: [48, 48], // size of the icon
+	iconAnchor: [24, 48], // point of the icon which will correspond to marker's location
+	shadowSize: [41, 41], // size of the shadow
+	shadowAnchor: [10, 40], // the same for the shadow
+	// popupAnchor: [-3, -76], // point from which the popup should open relative to the iconAnchor
+});
+var unknownMarkerIcon = L.icon({
+	iconUrl: "/static/images/spot-unknown-icon.png",
 	shadowUrl: "/static/images/spot-shadow.png",
 
 	iconSize: [48, 48], // size of the icon
@@ -46,9 +50,11 @@ let positionWatchId;
 
 init();
 
-function init() {
+async function init() {
 	console.log("Initializing...");
 
+	await loadUserData();
+	await loadSpots();
 	initMap();
 
 	if (!navigator.geolocation) {
@@ -75,6 +81,24 @@ function init() {
 	profileButton.addEventListener("change", openProfile);
 }
 
+async function loadSpots() {
+	const spotIdsResponse = await fetch("/api/all-spot-ids");
+	const spotIds = (await spotIdsResponse.json()).spots;
+	for (const spotId of spotIds) {
+		const infoResponse = await fetch(`/api/spot?spot-id=${spotId}`);
+		const spot = (await infoResponse.json()).spot;
+
+		spot["visited"] = userData.unlocked_spots.includes(spotId);
+
+		culturalLocations.push(spot);
+	}
+}
+
+async function loadUserData() {
+	const userResponse = await fetch(`/api/user?user-id=${encodeURIComponent("foo@bar.com")}`);
+	userData = (await userResponse.json()).user;
+}
+
 function initMap() {
 	map = L.map("map", {
 		zoomControl: false,
@@ -93,10 +117,11 @@ function initMap() {
 
 	// Waypoints + cultural locations
 	culturalLocations.forEach((loc) => {
-		const marker = L.marker([loc.lat, loc.lon], { icon: markerIcon }).addTo(map);
+		const icon = loc.visited ? markerIcon : unknownMarkerIcon;
+		const marker = L.marker([loc.y_coordinate, loc.x_coordinate], { icon: icon }).addTo(map);
 
 		marker.on("click", () => {
-			openChat(loc.name);
+			openSpot(loc);
 		});
 	});
 }
@@ -120,7 +145,7 @@ function openChat(locationName) {
 	document.body.appendChild(chatBox);
 
 	// Load mesaje salvate
-	fetch(`/get_messages/${locationName}`)
+	fetch(`/api/spot-messages?spot-id=${encodeURIComponent(locationName)}`)
 		.then((r) => r.json())
 		.then((data) => {
 			const content = document.getElementById(`chatContent-${locationName}`);
@@ -137,35 +162,68 @@ function sendMessage(locationName) {
 	const input = document.getElementById(`msgInput-${locationName}`);
 	const msg = input.value.trim();
 	if (!msg) return;
-	socket.emit("send_message", { location: locationName, user: username, message: msg });
 	input.value = "";
 }
 
-socket.on("receive_message", (data) => {
-	const content = document.getElementById(`chatContent-${data.location}`);
-	if (content) {
-		const div = document.createElement("div");
-		div.textContent = data.message;
-		content.appendChild(div);
-		content.scrollTop = content.scrollHeight;
-	}
-});
-
 function refreshLocation(pos) {
+	console.log("Location updated:", pos.coords.latitude, pos.coords.longitude);
 	userMarker.setLatLng([pos.coords.latitude, pos.coords.longitude]);
 	// map.setView([userMarker._latlng.lat, userMarker._latlng.lng], map.getZoom());
-	console.log("Location updated:", pos.coords.latitude, pos.coords.longitude);
 }
 
 function openMap() {
+	closeAllPopups();
 	console.log("Map opened");
 	map.setView([userMarker._latlng.lat, userMarker._latlng.lng], 14);
 }
 
+function openSpot(spot) {
+	closeAllPopups();
+	if (document.getElementById(`popup-spot`)) return;
+	const profilePopup = document.createElement("div");
+	profilePopup.className = "popup";
+	profilePopup.id = `popup-spot`;
+	let html = `
+		<span style="text-align: right; cursor: pointer;" onclick="closeAllPopups()">X</span>
+		<div class="popup-header">
+			<img class="profile-picture" src="/static/images/landmark.svg" width="200" height="200" alt="profile picture">
+			<div class="spot-name">${spot.name}</div>
+	`;
+	if (spot.visited) {
+		html += `Visited`;
+	} else {
+		html += `Not visited yet`;
+	}
+	html += `</div>`;
+	profilePopup.innerHTML = html;
+	document.body.insertBefore(profilePopup, navbar);
+}
+
 function openProfile() {
-	console.log("Profile opened");
+	closeAllPopups();
+	if (document.getElementById(`popup-profile`)) return;
+	const profilePopup = document.createElement("div");
+	profilePopup.className = "popup";
+	profilePopup.id = `popup-profile`;
+	profilePopup.innerHTML = `
+		<div class="popup-header">
+			<img class="profile-picture" src="/static/images/profile.svg" width="200" height="200" alt="profile picture">
+			<div class="username">${userData.name}</div>
+			<div class="score">${userData.total_points} points</div>
+			<div class="progress">${userData.unlocked_spots.length}/${culturalLocations.length}</div>
+		</div>
+	`;
+	document.body.insertBefore(profilePopup, navbar);
 }
 
 function openLeaderboard() {
+	closeAllPopups();
 	console.log("Leaderboard opened");
+}
+
+function closeAllPopups() {
+	const popups = document.getElementsByClassName("popup");
+	while (popups.length > 0) {
+		popups[0].remove();
+	}
 }

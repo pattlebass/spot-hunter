@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, session, url_for
 from flask_socketio import SocketIO, emit
 import json
 import os
+import databases
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'supersecretkey'
@@ -81,10 +82,32 @@ def handle_message(data):
     emit('receive_message', {'location': loc, 'message': msg}, broadcast=True)
 
 # SocketIO – vizitat
-@socketio.on('visit_location')
+@socketio.on('/api/visit_location')
 def handle_visit(data):
     emit('update_visited', data, broadcast=True)
 
+@app.route("/api/spot-messages")
+def api_messages():
+    spot_id = request.args.get("spot-id", default="")
+    messages = [spot_id]
+    return {"messages": messages}
+
+@app.route("/api/all-spot-ids")
+def api_all_spot_ids():
+    spots = databases.get_all_spot_ids()
+    return {"spots": spots}
+
+@app.route("/api/spot")
+def api_spot():
+    spot_id = request.args.get("spot-id", default="")
+    spot = databases.get_spot_by_id(spot_id)
+    return {"spot": spot}
+
+@app.route("/api/user")
+def api_user():
+    user_id = request.args.get("user-id", default="")
+    user = databases.get_user_by_email(user_id)
+    return {"user": user}
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)
