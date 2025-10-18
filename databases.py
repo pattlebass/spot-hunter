@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS spots (
   y_coordinate REAL NOT NULL,
   name TEXT,
   points_given INTEGER NOT NULL,
-  type TEXT
+  messages TEXT
 );
 '''
 
@@ -74,13 +74,13 @@ def get_user_by_email(email):
         else:
             return None
 
-def add_spot(x_coordinate, y_coordinate, name, points_given, type="generic"):
+def add_spot(x_coordinate, y_coordinate, name, points_given, messages="[]"):
     with sqlite3.connect('game.db') as conn:
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO spots (x_coordinate, y_coordinate, points_given, name, type)
+            INSERT INTO spots (x_coordinate, y_coordinate, points_given, name, messages)
             VALUES (?, ?, ?, ?, ?)
-        ''', (x_coordinate, y_coordinate, points_given, name, type))
+        ''', (x_coordinate, y_coordinate, points_given, name, messages))
         conn.commit()
     print(f"Spot {name} at ({x_coordinate}, {y_coordinate}) added successfully.")
 
@@ -109,31 +109,55 @@ def get_all_spot_ids():
         rows = cursor.fetchall()
         return [row[0] for row in rows]
 
-def add_visited_spot_to_user(email, spot_id):
+def add_message_to_spot(spot_id, username, message):
     with sqlite3.connect('game.db') as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT unlocked_spots FROM users WHERE email = ?", (email,))
-        row = cursor.fetchone()
-        if row is None:
-            print(f"User with email {email} not found.")
+        cursor.execute("SELECT messages FROM spots WHERE id = ?", (spot_id,))
+        messages_json = cursor.fetchone()
+        if not messages_json:
+            print(f"Spot with id {spot_id} not found.")
             return
-        unlocked_spots_json = row[0]
-        if unlocked_spots_json:
-            try:
-                unlocked_spots = json.loads(unlocked_spots_json)
-            except json.JSONDecodeError:
-                unlocked_spots = []
-        else:
-            unlocked_spots = []
 
-        if spot_id not in unlocked_spots:
-            unlocked_spots.append(spot_id)
-            updated_json = json.dumps(unlocked_spots)
-            cursor.execute("UPDATE users SET unlocked_spots = ? WHERE email = ?", (updated_json, email))
-            conn.commit()
-            print(f"Spot ID {spot_id} added to visited spots for user {email}.")
-        else:
-            print(f"Spot ID {spot_id} already exists in visited spots for user {email}.")
+        try:
+            messages_json = json.loads(messages_json[0]) if messages_json else []
+        except json.JSONDecodeError:
+            messages_json = []
+
+        message = username + ': ' + message
+
+        messages_json.append(message)
+        updated_json = json.dumps(messages_json)
+
+        cursor.execute("UPDATE spots SET messages = ? WHERE id = ?", 
+                       (updated_json, spot_id))
+        conn.commit()
+        print(f"Added message \"{message}\" to spot {spot_id}. Full message list: ")
+        print(f"{updated_json}")
+
+def get_messages_from_spot(spot_id):
+    with sqlite3.connect('game.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT messages FROM spots WHERE id = ?", (spot_id,))
+        result = cursor.fetchone()
+
+        if not result:
+            print(f"Spot with id {spot_id} not found.")
+            return []
+
+        messages_json = result[0]
+        if not messages_json:
+            return []
+
+        try:
+            messages = json.loads(messages_json)
+            if not isinstance(messages, list):
+                print(f"Warning: messages for spot {spot_id} are not a list.")
+                return []
+            return messages
+        except json.JSONDecodeError:
+            print(f"Warning: invalid JSON in messages for spot {spot_id}.")
+            return []
+
 
 def visit_spot(user_email, spot_id):
     with sqlite3.connect('game.db') as conn:
@@ -242,4 +266,3 @@ def get_leaderboard(top_n=10):
                 "total_points": row[2]
             })
         return leaderboard
-
