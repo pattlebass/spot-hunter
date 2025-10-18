@@ -109,6 +109,21 @@ def get_all_spot_ids():
         rows = cursor.fetchall()
         return [row[0] for row in rows]
 
+def get_spots_with_columns(columns = ["id", "x_coordinate", "y_coordinate", "name"]):
+    if not columns:
+        raise ValueError("You must specify at least one column name.")
+
+    col_str = ", ".join(columns)
+
+    with sqlite3.connect('game.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT {col_str} FROM spots")
+        rows = cursor.fetchall()
+
+        # Convert each row (a tuple) into a dict using column names as keys
+        return [dict(zip(columns, row)) for row in rows]
+
+
 def add_message_to_spot(spot_id, username, message):
     with sqlite3.connect('game.db') as conn:
         cursor = conn.cursor()
