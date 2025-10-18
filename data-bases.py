@@ -1,9 +1,9 @@
 import sqlite3
+import json
 from OSMPythonTools.overpass import Overpass
 
 
 overpass = Overpass()
-
 
 # SQL commands to create users and spots tables
 create_users_table = '''
@@ -12,10 +12,9 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT NOT NULL,
   password TEXT NOT NULL,
   total_points INTEGER DEFAULT 0,
-  unlocked_spots TEXT
+  unlocked_spots TEXT DEFAULT '[]'
 );
 '''
-
 
 create_spots_table = '''
 CREATE TABLE IF NOT EXISTS spots (
@@ -28,15 +27,10 @@ CREATE TABLE IF NOT EXISTS spots (
 );
 '''
 
-
-# Initialize database tables (drops existing and recreates)
-import sqlite3
-
 def create_tables():
     try:
         with sqlite3.connect('game.db') as conn:
             cursor = conn.cursor()
-            
             try:
                 cursor.execute("DROP TABLE IF EXISTS users")
                 cursor.execute("DROP TABLE IF EXISTS spots")
@@ -44,20 +38,15 @@ def create_tables():
                 cursor.execute(create_spots_table)
                 conn.commit()
                 print("Database tables 'users' and 'spots' created/reset successfully.")
-            
             except sqlite3.Error as e:
                 conn.rollback()
                 print(f"SQLite error during table creation: {e}")
-    
     except sqlite3.OperationalError as e:
         print(f"Operational error connecting to the database: {e}")
     except Exception as e:
         print(f"Unexpected error: {e}")
 
-
-
-# Add a user to the database
-def add_user(email, name, password, total_points=0, unlocked_spots=""):
+def add_user(email, name, password, total_points=0, unlocked_spots="[]"):
     with sqlite3.connect('game.db') as conn:
         cursor = conn.cursor()
         cursor.execute('''
@@ -67,8 +56,6 @@ def add_user(email, name, password, total_points=0, unlocked_spots=""):
         conn.commit()
     print(f"User {email} added successfully.")
 
-
-# Delete a user from the database by email
 def delete_user(email):
     with sqlite3.connect('game.db') as conn:
         cursor = conn.cursor()
@@ -76,8 +63,6 @@ def delete_user(email):
         conn.commit()
     print(f"User {email} deleted successfully.")
 
-
-# Retrieve user data by email
 def get_user_by_email(email):
     with sqlite3.connect('game.db') as conn:
         cursor = conn.cursor()
@@ -89,8 +74,7 @@ def get_user_by_email(email):
         else:
             return None
 
-# Add a spot to the database
-def add_spot(x_coordinate, y_coordinate, name, points_given, type = "generic"):
+def add_spot(x_coordinate, y_coordinate, name, points_given, type="generic"):
     with sqlite3.connect('game.db') as conn:
         cursor = conn.cursor()
         cursor.execute('''
@@ -100,8 +84,6 @@ def add_spot(x_coordinate, y_coordinate, name, points_given, type = "generic"):
         conn.commit()
     print(f"Spot {name} at ({x_coordinate}, {y_coordinate}) added successfully.")
 
-
-# Delete a spot from the database by id
 def delete_spot(spot_id):
     with sqlite3.connect('game.db') as conn:
         cursor = conn.cursor()
@@ -109,8 +91,6 @@ def delete_spot(spot_id):
         conn.commit()
     print(f"Spot with ID {spot_id} deleted successfully.")
 
-
-# Retrieve spot data by id
 def get_spot_by_id(spot_id):
     with sqlite3.connect('game.db') as conn:
         cursor = conn.cursor()
@@ -122,11 +102,75 @@ def get_spot_by_id(spot_id):
         else:
             return None
 
+def get_all_spot_ids():
+    with sqlite3.connect('game.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM spots")
+        rows = cursor.fetchall()
+        return [row[0] for row in rows]
 
-# Query Overpass for all the places that could be a spot
-# !!! Some won't have names
+def add_visited_spot_to_user(email, spot_id):
+    with sqlite3.connect('game.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT unlocked_spots FROM users WHERE email = ?", (email,))
+        row = cursor.fetchone()
+        if row is None:
+            print(f"User with email {email} not found.")
+            return
+        unlocked_spots_json = row[0]
+        if unlocked_spots_json:
+            try:
+                unlocked_spots = json.loads(unlocked_spots_json)
+            except json.JSONDecodeError:
+                unlocked_spots = []
+        else:
+            unlocked_spots = []
+
+        if spot_id not in unlocked_spots:
+            unlocked_spots.append(spot_id)
+            updated_json = json.dumps(unlocked_spots)
+            cursor.execute("UPDATE users SET unlocked_spots = ? WHERE email = ?", (updated_json, email))
+            conn.commit()
+            print(f"Spot ID {spot_id} added to visited spots for user {email}.")
+        else:
+            print(f"Spot ID {spot_id} already exists in visited spots for user {email}.")
+
+def visit_spot(user_email, spot_id):
+    with sqlite3.connect('game.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT unlocked_spots, total_points FROM users WHERE email = ?", (user_email,))
+        user_row = cursor.fetchone()
+        if not user_row:
+            print(f"User {user_email} not found.")
+            return
+        unlocked_spots_json, current_points = user_row
+        try:
+            unlocked_spots = json.loads(unlocked_spots_json) if unlocked_spots_json else []
+        except json.JSONDecodeError:
+            unlocked_spots = []
+
+        if spot_id in unlocked_spots:
+            print(f"User {user_email} already visited spot ID {spot_id}. No points added.")
+            return
+
+        cursor.execute("SELECT points_given FROM spots WHERE id = ?", (spot_id,))
+        spot_row = cursor.fetchone()
+        if not spot_row:
+            print(f"Spot ID {spot_id} does not exist.")
+            return
+        spot_points = spot_row[0]
+
+        unlocked_spots.append(spot_id)
+        updated_json = json.dumps(unlocked_spots)
+        updated_points = current_points + spot_points
+
+        cursor.execute("UPDATE users SET unlocked_spots = ?, total_points = ? WHERE email = ?", 
+                       (updated_json, updated_points, user_email))
+        conn.commit()
+        print(f"User {user_email} visited spot {spot_id}. Points earned: {spot_points}. Total points: {updated_points}")
+
 def generate_all_spots_in_city(city):
-   query = f"""
+    query = f"""
     (
         area["name"="{city}"]["boundary"="administrative"]["admin_level"="8"]->.city;
         node["amenity"="arts_centre"](area.city);
@@ -134,17 +178,14 @@ def generate_all_spots_in_city(city):
         node["amenity"="fountain"](area.city);
         node["amenity"="cinema"](area.city);
         node["amenity"="theater"](area.city);
-
         node["building"="museum"](area.city);
         node["building"="train_station"](area.city);
         node["building"="university"](area.city);
-
         node["building"="castle"](area.city);
         node["building"="tower"](area.city);
         node["building"="pagoda"](area.city);
         node["building"="ruins"](area.city);
         node["building"="triumphal_arch"](area.city);
-
         node["building"="cathedral"](area.city);
         node["building"="chapel"](area.city);
         node["building"="church"](area.city);
@@ -153,16 +194,13 @@ def generate_all_spots_in_city(city):
         node["building"="shrine"](area.city);
         node["building"="synagogue"](area.city);
         node["building"="temple"](area.city);
-
         node["historic"](area.city);
     );
     out;
-   """
-   result = overpass.query(query)
-   return result.nodes()
+    """
+    result = overpass.query(query)
+    return result.nodes()
 
-
-# Try several likely name-related tags in priority order
 def get_node_name(node):
     for key in ['name', 'official_name', 'alt_name', 'loc_name', 'addr:housename', 'monument:name']:
         value = node.tag(key)
@@ -170,10 +208,8 @@ def get_node_name(node):
             return value
     return "(no name)"
 
-
 def populate_spots_db():
     spots = generate_all_spots_in_city("Craiova")
-
     for spot in spots:
         name = get_node_name(spot)
         lat = spot.lat()
@@ -188,6 +224,22 @@ def delete_all_spots():
         conn.commit()
     print(f"All spots deleted successfully.")
 
-delete_all_spots()
-create_tables()
-populate_spots_db()
+def get_leaderboard(top_n=10):
+    with sqlite3.connect('game.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT email, name, total_points
+            FROM users
+            ORDER BY total_points DESC
+            LIMIT ?
+        """, (top_n,))
+        rows = cursor.fetchall()
+        leaderboard = []
+        for row in rows:
+            leaderboard.append({
+                "email": row[0],
+                "name": row[1],
+                "total_points": row[2]
+            })
+        return leaderboard
+
