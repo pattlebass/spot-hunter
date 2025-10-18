@@ -1,3 +1,7 @@
+const mapButton = document.getElementById("tab-map");
+const leaderboardButton = document.getElementById("tab-leaderboard");
+const profileButton = document.getElementById("tab-you");
+
 const socket = io();
 const culturalLocations = [
 	{ name: "Muzeul Olteniei", lat: 44.3148, lon: 23.7971 },
@@ -65,6 +69,10 @@ function init() {
 			timeout: 5000,
 		}
 	);
+
+	mapButton.addEventListener("change", openMap);
+	leaderboardButton.addEventListener("change", openLeaderboard);
+	profileButton.addEventListener("change", openProfile);
 }
 
 function initMap() {
@@ -72,7 +80,7 @@ function initMap() {
 		zoomControl: false,
 		maxBounds: craiovaBounds,
 		maxBoundsViscosity: 0.5,
-	}).setView([userMarker._latlng.lat, userMarker._latlng.lng], 13);
+	}).setView([userMarker._latlng.lat, userMarker._latlng.lng], 14);
 
 	L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
 		attribution:
@@ -91,11 +99,6 @@ function initMap() {
 			openChat(loc.name);
 		});
 	});
-}
-
-function updateScore() {
-	const pct = Math.round((visitedPoints.length / culturalLocations.length) * 100);
-	scoreDiv.innerText = `Acoperire: ${pct}%`;
 }
 
 function openChat(locationName) {
@@ -152,4 +155,17 @@ function refreshLocation(pos) {
 	userMarker.setLatLng([pos.coords.latitude, pos.coords.longitude]);
 	// map.setView([userMarker._latlng.lat, userMarker._latlng.lng], map.getZoom());
 	console.log("Location updated:", pos.coords.latitude, pos.coords.longitude);
+}
+
+function openMap() {
+	console.log("Map opened");
+	map.setView([userMarker._latlng.lat, userMarker._latlng.lng], 14);
+}
+
+function openProfile() {
+	console.log("Profile opened");
+}
+
+function openLeaderboard() {
+	console.log("Leaderboard opened");
 }
