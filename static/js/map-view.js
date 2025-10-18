@@ -106,6 +106,7 @@ function initMap() {
 		zoomControl: false,
 		maxBounds: craiovaBounds,
 		maxBoundsViscosity: 0.5,
+		attributionControl: false,
 	}).setView([userMarker._latlng.lat, userMarker._latlng.lng], 14);
 
 	L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
@@ -114,6 +115,12 @@ function initMap() {
 		subdomains: "abcd",
 		minZoom: 13,
 	}).addTo(map);
+
+	L.control
+		.attribution({
+			position: "topright",
+		})
+		.addTo(map);
 
 	userMarker.addTo(map);
 
