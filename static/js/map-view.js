@@ -1,4 +1,3 @@
-const LOCATION_REFRESH_INTERVAL = 3000;
 const socket = io();
 const culturalLocations = [
 	{ name: "Muzeul Olteniei", lat: 44.3148, lon: 23.7971 },
@@ -15,45 +14,59 @@ const craiovaBounds = L.latLngBounds(
 	[44.277779832389044, 23.86410630191919]
 );
 
-function initMap(lat, lon) {
-	const map = L.map("map", {
+const userMarker = L.marker([44.3148, 23.7971]);
+let map;
+let positionWatchId;
+
+init();
+
+function init() {
+	console.log("Initializing...");
+
+	initMap();
+
+	if (!navigator.geolocation) {
+		alert("Acest browser nu suportă geolocația.");
+		return;
+	}
+
+	positionWatchId = navigator.geolocation.watchPosition(
+		(position) => {
+			refreshLocation(position);
+		},
+		(error) => {
+			console.error("Error watching position:", error.message);
+		},
+		{
+			enableHighAccuracy: true,
+			maximumAge: 0,
+			timeout: 5000,
+		}
+	);
+}
+
+function initMap() {
+	map = L.map("map", {
 		zoomControl: false,
 		maxBounds: craiovaBounds,
 		maxBoundsViscosity: 0.5,
-	}).setView([lat, lon], 14);
+	}).setView([userMarker._latlng.lat, userMarker._latlng.lng], 13);
 
 	L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
 		minZoom: 13,
 		attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 	}).addTo(map);
 
-	const userMarker = L.marker([lat, lon]).addTo(map).bindPopup("Tu ești aici!").openPopup();
+	userMarker.addTo(map);
 
 	// Waypoints + cultural locations
 	culturalLocations.forEach((loc) => {
-		const marker = L.marker([loc.lat, loc.lon]).addTo(map).bindPopup(`<b>${loc.name}</b>`);
+		const marker = L.marker([loc.lat, loc.lon]).addTo(map);
 
 		marker.on("click", () => {
 			openChat(loc.name);
-			// dacă e aproape de utilizator, marcam vizitat
-			const dist = map.distance([lat, lon], [loc.lat, loc.lon]);
-			if (dist < 50) {
-				// aprox 50 metri
-				if (!visitedPoints.includes(loc.name)) {
-					visitedPoints.push(loc.name);
-					updateScore();
-				}
-			}
 		});
 	});
-
-	// Opțiune click pe locatia curenta
-	const currDiv = document.createElement("div");
-	currDiv.className = "waypoint";
-	currDiv.innerText = "Locatia curenta";
-	currDiv.onclick = () => {
-		map.setView([lat, lon], 15);
-	};
 }
 
 function updateScore() {
@@ -111,14 +124,8 @@ socket.on("receive_message", (data) => {
 	}
 });
 
-setTimeout(() => {}, LOCATION_REFRESH_INTERVAL);
-if (navigator.geolocation) {
-	navigator.geolocation.getCurrentPosition(
-		(pos) => {
-			initMap(pos.coords.latitude, pos.coords.longitude);
-		},
-		() => alert("bro deschide locatia")
-	);
-} else {
-	alert("bro deschide locatia");
+function refreshLocation(pos) {
+	userMarker.setLatLng([pos.coords.latitude, pos.coords.longitude]);
+	map.setView([userMarker._latlng.lat, userMarker._latlng.lng], map.getZoom());
+	console.log("Location updated:", pos.coords.latitude, pos.coords.longitude);
 }
