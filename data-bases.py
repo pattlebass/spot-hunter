@@ -1,5 +1,5 @@
 import sqlite3
-import from OSMPythonTools.overpass import Overpass
+from OSMPythonTools.overpass import Overpass
 
 overpass = Overpass()
 
