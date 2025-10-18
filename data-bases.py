@@ -1,7 +1,9 @@
 import sqlite3
 from OSMPythonTools.overpass import Overpass
 
+
 overpass = Overpass()
+
 
 # SQL commands to create users and spots tables
 create_users_table = '''
@@ -14,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 '''
 
+
 create_spots_table = '''
 CREATE TABLE IF NOT EXISTS spots (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -24,6 +27,7 @@ CREATE TABLE IF NOT EXISTS spots (
   description TEXT
 );
 '''
+
 
 # Initialize database tables (drops existing and recreates)
 def create_tables():
@@ -36,6 +40,7 @@ def create_tables():
         conn.commit()
     print("Database tables 'users' and 'spots' created/reset successfully.")
 
+
 # Add a user to the database
 def add_user(email, name, password, total_points=0, unlocked_spots=""):
     with sqlite3.connect('game.db') as conn:
@@ -47,6 +52,7 @@ def add_user(email, name, password, total_points=0, unlocked_spots=""):
         conn.commit()
     print(f"User {email} added successfully.")
 
+
 # Delete a user from the database by email
 def delete_user(email):
     with sqlite3.connect('game.db') as conn:
@@ -54,6 +60,7 @@ def delete_user(email):
         cursor.execute("DELETE FROM users WHERE email = ?", (email,))
         conn.commit()
     print(f"User {email} deleted successfully.")
+
 
 # Retrieve user data by email
 def get_user_by_email(email):
@@ -67,6 +74,7 @@ def get_user_by_email(email):
         else:
             return None
 
+
 # Add a spot to the database
 def add_spot(x_coordinate, y_coordinate, name, points_given, description = "no description"):
     with sqlite3.connect('game.db') as conn:
@@ -74,9 +82,10 @@ def add_spot(x_coordinate, y_coordinate, name, points_given, description = "no d
         cursor.execute('''
             INSERT INTO spots (x_coordinate, y_coordinate, points_given, name, description)
             VALUES (?, ?, ?, ?, ?)
-        ''', (x_coordinate, y_coordinate, name, points_given, description))
+        ''', (x_coordinate, y_coordinate, points_given, name, description))
         conn.commit()
     print(f"Spot {name} at ({x_coordinate}, {y_coordinate}) added successfully.")
+
 
 # Delete a spot from the database by id
 def delete_spot(spot_id):
@@ -85,6 +94,7 @@ def delete_spot(spot_id):
         cursor.execute("DELETE FROM spots WHERE id = ?", (spot_id,))
         conn.commit()
     print(f"Spot with ID {spot_id} deleted successfully.")
+
 
 # Retrieve spot data by id
 def get_spot_by_id(spot_id):
@@ -98,7 +108,8 @@ def get_spot_by_id(spot_id):
         else:
             return None
 
-#Query Overpass for all the places that could be a spot
+
+# Query Overpass for all the places that could be a spot
 # !!! Some won't have names
 def generate_all_spots_in_city(city):
    query = f"""
@@ -131,19 +142,19 @@ def generate_all_spots_in_city(city):
        
     );
     out;
-   """##leisure, tourism
+   """
    result = overpass.query(query)
    return result.nodes()
 
 
- # Try several likely name-related tags in priority order
-
+# Try several likely name-related tags in priority order
 def get_node_name(node):
     for key in ['name', 'official_name', 'alt_name', 'loc_name', 'addr:housename', 'monument:name']:
         value = node.tag(key)
         if value:
             return value
     return "(no name)"
+
 
 def populate_spots_db():
     spots = generate_all_spots_in_city("Craiova")
@@ -154,3 +165,16 @@ def populate_spots_db():
         lon = spot.lon()
         if name != "(no name)":
             add_spot(lon, lat, name, 5)
+
+def delete_allspots():
+    with sqlite3.connect('game.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM spots")
+        conn.commit()
+    print(f"All spots deleted successfully.")
+
+
+
+create_tables()
+
+delete_allspots()
