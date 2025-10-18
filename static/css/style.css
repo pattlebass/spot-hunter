@@ -6,13 +6,18 @@
 	--on-primary-color: #ffffff;
 	--on-secondary-color: #ffffff8f;
 	--on-background-color: #000000;
+	--on-background-faded-color: #0000008f;
 }
 
 body {
+	font-family: "Baloo Chettan 2", sans-serif;
+	font-optical-sizing: auto;
+	font-weight: 500;
+	font-style: normal;
+
 	margin: 0;
 	display: flex;
 	height: 100vh;
-	font-family: Arial, sans-serif;
 }
 
 .map-container {
@@ -38,8 +43,7 @@ body {
 
 	background-color: var(--secondary-color);
 	box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
-	padding: 0 12px;
-	border-radius: 36px;
+	border-radius: 9999px;
 }
 
 .nav-list {
@@ -47,14 +51,14 @@ body {
 	list-style: none;
 	justify-content: flex-start;
 	align-items: center;
-	gap: 12px;
-	height: 60px;
+	padding: 8px 12px;
 }
 
 .nav-list li {
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	padding: 6px;
 }
 
 .nav-list input[type="radio"] {
@@ -64,9 +68,10 @@ body {
 .nav-list label {
 	display: block;
 	color: var(--on-secondary-color);
+	font-size: 20px;
 	text-decoration: none;
-	padding: 14px 20px;
-	border-radius: 36px;
+	padding: 10px 18px;
+	border-radius: 9999px;
 	transition: background-color 0.3s ease, color 0.3s ease;
 	cursor: pointer;
 }
@@ -102,6 +107,14 @@ body {
 	margin-bottom: 10px;
 }
 
+.popup-close {
+	text-align: right;
+	cursor: pointer;
+	font-size: 40px;
+	font-family: monospace, monospace;
+	color: var(--on-background-faded-color);
+}
+
 .chatHeader {
 	background: #333;
 	color: white;
@@ -126,4 +139,117 @@ body {
 
 .chatInput button {
 	padding: 5px;
+}
+
+.profile-picture {
+	margin-bottom: -12px;
+}
+
+.profile-username {
+	font-size: 32px;
+	font-weight: bold;
+	text-align: center;
+	margin-bottom: 24px;
+}
+
+.profile-points {
+	font-size: 20px;
+	text-align: center;
+	color: var(--on-background-faded-color);
+}
+
+.profile-progress-bar {
+	width: 300px;
+	height: 20px;
+	background: #eee;
+	border-radius: 10px;
+	overflow: hidden;
+	margin: 10px 0;
+	position: relative;
+}
+
+.profile-progress-fill {
+	background: var(--primary-color);
+	height: 100%;
+	color: white;
+	text-align: center;
+	line-height: 20px;
+	font-size: 0.9em;
+	white-space: nowrap;
+	position: relative;
+	z-index: 1;
+	overflow: visible;
+}
+
+.bubble-container {
+	position: absolute;
+	top: 0;
+	right: -5px;
+	height: 100%;
+	width: 20px;
+	pointer-events: none;
+	overflow: visible;
+}
+
+.bubble {
+	position: absolute;
+	bottom: 0;
+	border-radius: 50%;
+	background: var(--primary-color);
+	opacity: 0;
+	animation: float 2s infinite ease-in;
+}
+
+.bubble1 {
+	width: 4px;
+	height: 4px;
+	top: 3px;
+	animation-delay: 0s;
+}
+
+.bubble2 {
+	width: 6px;
+	height: 6px;
+	top: 8px;
+	animation-delay: 0.5s;
+}
+
+.bubble3 {
+	width: 3px;
+	height: 3px;
+	top: 12px;
+	animation-delay: 1s;
+}
+
+@keyframes float {
+	0% {
+		transform: translateY(0);
+		opacity: 0;
+	}
+	10% {
+		opacity: 1;
+	}
+	100% {
+		transform: translateX(20px);
+		opacity: 0;
+	}
+}
+
+.profile-label {
+	font-size: 26px;
+	text-align: center;
+	color: var(--on-background-color);
+}
+
+.profile-separator {
+	width: 50%;
+	height: 6px;
+	background: #ccc;
+	border: 0;
+	border-radius: 4px;
+	margin: 15px 0;
+}
+
+.points-icon {
+	vertical-align: middle;
 }

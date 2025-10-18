@@ -107,6 +107,8 @@ def api_spot():
 def api_user():
     user_id = request.args.get("user-id", default="")
     user = databases.get_user_by_email(user_id)
+    # a little hack
+    user["unlocked_spots"] = json.loads(user["unlocked_spots"]) if user["unlocked_spots"] else []
     return {"user": user}
 
 if __name__ == "__main__":

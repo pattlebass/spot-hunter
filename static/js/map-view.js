@@ -76,6 +76,8 @@ async function init() {
 		}
 	);
 
+	mapButton.checked = true;
+
 	mapButton.addEventListener("change", openMap);
 	leaderboardButton.addEventListener("change", openLeaderboard);
 	profileButton.addEventListener("change", openProfile);
@@ -115,7 +117,6 @@ function initMap() {
 
 	userMarker.addTo(map);
 
-	// Waypoints + cultural locations
 	culturalLocations.forEach((loc) => {
 		const icon = loc.visited ? markerIcon : unknownMarkerIcon;
 		const marker = L.marker([loc.y_coordinate, loc.x_coordinate], { icon: icon }).addTo(map);
@@ -173,7 +174,6 @@ function refreshLocation(pos) {
 
 function openMap() {
 	closeAllPopups();
-	console.log("Map opened");
 	map.setView([userMarker._latlng.lat, userMarker._latlng.lng], 14);
 }
 
@@ -184,9 +184,9 @@ function openSpot(spot) {
 	profilePopup.className = "popup";
 	profilePopup.id = `popup-spot`;
 	let html = `
-		<span style="text-align: right; cursor: pointer;" onclick="closeAllPopups()">X</span>
+		<span class="popup-close" onclick="closeAllPopups()">x</span>
 		<div class="popup-header">
-			<img class="profile-picture" src="/static/images/landmark.svg" width="200" height="200" alt="profile picture">
+			<img class="spot-picture" src="/static/images/landmark.svg" width="200" height="200" alt="profile picture">
 			<div class="spot-name">${spot.name}</div>
 	`;
 	if (spot.visited) {
@@ -202,15 +202,34 @@ function openSpot(spot) {
 function openProfile() {
 	closeAllPopups();
 	if (document.getElementById(`popup-profile`)) return;
+
+	const progressPercent =
+		Math.floor((userData.unlocked_spots.length / culturalLocations.length) * 100) + "%";
 	const profilePopup = document.createElement("div");
 	profilePopup.className = "popup";
 	profilePopup.id = `popup-profile`;
 	profilePopup.innerHTML = `
 		<div class="popup-header">
 			<img class="profile-picture" src="/static/images/profile.svg" width="200" height="200" alt="profile picture">
-			<div class="username">${userData.name}</div>
-			<div class="score">${userData.total_points} points</div>
-			<div class="progress">${userData.unlocked_spots.length}/${culturalLocations.length}</div>
+			<div class="profile-username">${userData.name}</div>
+			<hr class="profile-separator">
+			<div class="profile-label">Points</div>
+			<div class="profile-points">
+				${userData.total_points}
+				<img src="/static/images/point.svg" width="24" height="24" alt="points icon" class="points-icon" />
+			</div>
+			<hr class="profile-separator">
+			<div class="profile-label">${userData.unlocked_spots.length}/${culturalLocations.length} Spots Discovered</div>
+			<div class="profile-progress-bar">
+  			<div class="profile-progress-fill" style="width: ${progressPercent}">
+					${progressPercent}
+					<div class="bubble-container">
+						<span class="bubble bubble1"></span>
+						<span class="bubble bubble2"></span>
+						<span class="bubble bubble3"></span>
+					</div>
+				</div>
+			</div>
 		</div>
 	`;
 	document.body.insertBefore(profilePopup, navbar);
