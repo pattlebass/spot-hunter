@@ -24,21 +24,36 @@ CREATE TABLE IF NOT EXISTS spots (
   y_coordinate REAL NOT NULL,
   name TEXT,
   points_given INTEGER NOT NULL,
-  description TEXT
+  type TEXT
 );
 '''
 
 
 # Initialize database tables (drops existing and recreates)
+import sqlite3
+
 def create_tables():
-    with sqlite3.connect('game.db') as conn:
-        cursor = conn.cursor()
-        cursor.execute("DROP TABLE IF EXISTS users")
-        cursor.execute("DROP TABLE IF EXISTS spots")
-        cursor.execute(create_users_table)
-        cursor.execute(create_spots_table)
-        conn.commit()
-    print("Database tables 'users' and 'spots' created/reset successfully.")
+    try:
+        with sqlite3.connect('game.db') as conn:
+            cursor = conn.cursor()
+            
+            try:
+                cursor.execute("DROP TABLE IF EXISTS users")
+                cursor.execute("DROP TABLE IF EXISTS spots")
+                cursor.execute(create_users_table)
+                cursor.execute(create_spots_table)
+                conn.commit()
+                print("Database tables 'users' and 'spots' created/reset successfully.")
+            
+            except sqlite3.Error as e:
+                conn.rollback()
+                print(f"SQLite error during table creation: {e}")
+    
+    except sqlite3.OperationalError as e:
+        print(f"Operational error connecting to the database: {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+
 
 
 # Add a user to the database
@@ -74,15 +89,14 @@ def get_user_by_email(email):
         else:
             return None
 
-
 # Add a spot to the database
-def add_spot(x_coordinate, y_coordinate, name, points_given, description = "no description"):
+def add_spot(x_coordinate, y_coordinate, name, points_given, type = "generic"):
     with sqlite3.connect('game.db') as conn:
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT INTO spots (x_coordinate, y_coordinate, points_given, name, description)
+            INSERT INTO spots (x_coordinate, y_coordinate, points_given, name, type)
             VALUES (?, ?, ?, ?, ?)
-        ''', (x_coordinate, y_coordinate, points_given, name, description))
+        ''', (x_coordinate, y_coordinate, points_given, name, type))
         conn.commit()
     print(f"Spot {name} at ({x_coordinate}, {y_coordinate}) added successfully.")
 
@@ -115,6 +129,7 @@ def generate_all_spots_in_city(city):
    query = f"""
     (
         area["name"="{city}"]["boundary"="administrative"]["admin_level"="8"]->.city;
+        node["amenity"="arts_centre"](area.city);
         node["amenity"="music_venue"](area.city);
         node["amenity"="fountain"](area.city);
         node["amenity"="cinema"](area.city);
@@ -123,11 +138,13 @@ def generate_all_spots_in_city(city):
         node["building"="museum"](area.city);
         node["building"="train_station"](area.city);
         node["building"="university"](area.city);
+
         node["building"="castle"](area.city);
         node["building"="tower"](area.city);
         node["building"="pagoda"](area.city);
         node["building"="ruins"](area.city);
         node["building"="triumphal_arch"](area.city);
+
         node["building"="cathedral"](area.city);
         node["building"="chapel"](area.city);
         node["building"="church"](area.city);
@@ -138,8 +155,6 @@ def generate_all_spots_in_city(city):
         node["building"="temple"](area.city);
 
         node["historic"](area.city);
-        node["geological"](area.city);
-       
     );
     out;
    """
@@ -166,15 +181,13 @@ def populate_spots_db():
         if name != "(no name)":
             add_spot(lon, lat, name, 5)
 
-def delete_allspots():
+def delete_all_spots():
     with sqlite3.connect('game.db') as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM spots")
         conn.commit()
     print(f"All spots deleted successfully.")
 
-
-
+delete_all_spots()
 create_tables()
-
-delete_allspots()
+populate_spots_db()
