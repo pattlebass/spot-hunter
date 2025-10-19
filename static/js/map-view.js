@@ -242,9 +242,36 @@ function openProfile() {
 	document.body.insertBefore(profilePopup, navbar);
 }
 
-function openLeaderboard() {
+async function openLeaderboard() {
 	closeAllPopups();
-	console.log("Leaderboard opened");
+	if (document.getElementById(`popup-leaderboard`)) return;
+
+	const leaderboardPopup = document.createElement("div");
+	leaderboardPopup.className = "popup";
+	leaderboardPopup.id = `popup-leaderboard`;
+	let html = `
+		<div class="popup-header">
+			<div class="leaderboard-title">Leaderboard</div>
+			<ol class="leaderboard-list">
+	`;
+	const userResponse = await fetch(`/api/leaderboard`);
+	const users = (await userResponse.json()).leaderboard;
+	for (const user of users) {
+		html += `
+			<li>
+				<img src="/static/images/profile.svg" width="32" height="32" alt="profile picture" class="leaderboard-profile-picture" />
+				<span class="leaderboard-username">${truncate(user.name, 11)}</span>
+				<span class="leaderboard-points-container">
+					${user.total_points}
+					<img src="/static/images/point.svg" width="32" height="32" alt="points" class="points-icon" />
+				</span>
+			</li>
+		`;
+	}
+	html += `<div style="height:${navbar.offsetHeight}px"></div>`; // spacer for navbar
+	html += `</ol></div>`;
+	leaderboardPopup.innerHTML = html;
+	document.body.insertBefore(leaderboardPopup, navbar);
 }
 
 function closeAllPopups() {
@@ -252,4 +279,9 @@ function closeAllPopups() {
 	while (popups.length > 0) {
 		popups[0].remove();
 	}
+}
+
+function truncate(str, maxLength) {
+	if (str.length <= maxLength) return str;
+	return str.slice(0, maxLength - 1) + "…";
 }

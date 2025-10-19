@@ -111,5 +111,10 @@ def api_user():
     user["unlocked_spots"] = json.loads(user["unlocked_spots"]) if user["unlocked_spots"] else []
     return {"user": user}
 
+@app.route("/api/leaderboard")
+def api_leaderboard():
+    leaderboard = databases.get_leaderboard()
+    return {"leaderboard": leaderboard}
+
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)

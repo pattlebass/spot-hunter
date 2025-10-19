@@ -276,7 +276,7 @@ def get_leaderboard(top_n=10):
         leaderboard = []
         for row in rows:
             leaderboard.append({
-                "email": row[0],
+                # "email": row[0],
                 "name": row[1],
                 "total_points": row[2]
             })
