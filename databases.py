@@ -124,7 +124,7 @@ def get_spots_with_columns(columns = ["id", "x_coordinate", "y_coordinate", "nam
         return [dict(zip(columns, row)) for row in rows]
 
 
-def add_message_to_spot(spot_id, username, message):
+def add_message_to_spot(spot_id, user_email, message):
     with sqlite3.connect('game.db') as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT messages FROM spots WHERE id = ?", (spot_id,))
@@ -138,6 +138,13 @@ def add_message_to_spot(spot_id, username, message):
         except json.JSONDecodeError:
             messages_json = []
 
+        cursor.execute("SELECT name FROM users WHERE email = ?", (user_email,))
+        user_row = cursor.fetchone()
+        if not user_row:
+            print(f"User {user_email} not found.")
+            return 0
+
+        username = user_row[0]
         message = username + ': ' + message
 
         messages_json.append(message)
@@ -181,7 +188,7 @@ def visit_spot(user_email, spot_id):
         user_row = cursor.fetchone()
         if not user_row:
             print(f"User {user_email} not found.")
-            return
+            return 0
         unlocked_spots_json, current_points = user_row
         try:
             unlocked_spots = json.loads(unlocked_spots_json) if unlocked_spots_json else []
@@ -190,23 +197,24 @@ def visit_spot(user_email, spot_id):
 
         if spot_id in unlocked_spots:
             print(f"User {user_email} already visited spot ID {spot_id}. No points added.")
-            return
+            return 0
 
         cursor.execute("SELECT points_given FROM spots WHERE id = ?", (spot_id,))
         spot_row = cursor.fetchone()
         if not spot_row:
             print(f"Spot ID {spot_id} does not exist.")
-            return
+            return 0
         spot_points = spot_row[0]
 
-        unlocked_spots.append(spot_id)
+        unlocked_spots.append(int(spot_id))
         updated_json = json.dumps(unlocked_spots)
-        updated_points = current_points + spot_points
+        updated_points = int(current_points + spot_points)
 
         cursor.execute("UPDATE users SET unlocked_spots = ?, total_points = ? WHERE email = ?", 
                        (updated_json, updated_points, user_email))
         conn.commit()
         print(f"User {user_email} visited spot {spot_id}. Points earned: {spot_points}. Total points: {updated_points}")
+        return spot_points
 
 def generate_all_spots_in_city(city):
     query = f"""

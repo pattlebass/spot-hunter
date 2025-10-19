@@ -87,10 +87,18 @@ def handle_visit(data):
     emit('update_visited', data, broadcast=True)
 
 @app.route("/api/spot-messages")
-def api_messages():
+def api_spot_messages():
     spot_id = request.args.get("spot-id", default="")
-    messages = [spot_id]
+    messages = databases.get_messages_from_spot(spot_id)
     return {"messages": messages}
+
+@app.route("/api/spot-leave-message")
+def api_spot_leave_message():
+    user_id = request.args.get("user-id", default="")
+    spot_id = request.args.get("spot-id", default="")
+    message = request.args.get("message", default="")
+    databases.add_message_to_spot(user_email=user_id, spot_id=spot_id, message=message)
+    return {"success": True}
 
 @app.route("/api/all-spot-ids")
 def api_all_spot_ids():
@@ -120,6 +128,13 @@ def api_leaderboard():
 def api_all_spots():
     spots = databases.get_spots_with_columns()
     return {"spots": spots}
+
+@app.route("/api/visit-spot")
+def api_visit_spot():
+    user_id = request.args.get("user-id", default="")
+    spot_id = request.args.get("spot-id", default="")
+    points_given = databases.visit_spot(user_email=user_id, spot_id=spot_id)
+    return {"points_given": points_given}
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)

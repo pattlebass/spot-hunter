@@ -1,3 +1,5 @@
+const UNLOCK_RANGE = 50; // meters
+
 const mapContainer = document.getElementsByClassName("map-container")[0];
 const navbar = document.getElementsByClassName("navbar")[0];
 const mapButton = document.getElementById("tab-map");
@@ -87,7 +89,7 @@ async function loadSpots() {
 	const spotResponse = await fetch("/api/all-spots");
 	const spots = (await spotResponse.json()).spots;
 	for (const spot of spots) {
-		spot["visited"] = userData.unlocked_spots.includes(spot.spot_id);
+		spot["visited"] = userData.unlocked_spots.includes(spot.id);
 		culturalLocations.push(spot);
 	}
 }
@@ -124,55 +126,48 @@ function initMap() {
 		const icon = loc.visited ? markerIcon : unknownMarkerIcon;
 		const marker = L.marker([loc.y_coordinate, loc.x_coordinate], { icon: icon }).addTo(map);
 
+		loc["marker"] = marker;
 		marker.on("click", () => {
 			openSpot(loc);
 		});
 	});
 }
 
-function openChat(locationName) {
-	if (document.getElementById(`chat-${locationName}`)) return;
-	const chatBox = document.createElement("div");
-	chatBox.className = "chatBox";
-	chatBox.id = `chat-${locationName}`;
-	chatBox.innerHTML = `
-			        <div class="chatHeader">
-			            Chat: ${locationName}
-			            <span style="float:right; cursor:pointer;" onclick="this.parentElement.parentElement.remove()">X</span>
-			        </div>
-			        <div class="chatContent" id="chatContent-${locationName}"></div>
-			        <div class="chatInput">
-			            <input type="text" id="msgInput-${locationName}" placeholder="Scrie mesaj..." />
-			            <button onclick="sendMessage('${locationName}')">Trimite</button>
-			        </div>
-			    `;
-	document.body.appendChild(chatBox);
+async function unlockSpot(spotId) {
+	// Hugely inefficient but I guess it's called a hackathon for a reason
+	const spot = culturalLocations.find((s) => s.id === spotId);
 
-	// Load mesaje salvate
-	fetch(`/api/spot-messages?spot-id=${encodeURIComponent(locationName)}`)
-		.then((r) => r.json())
-		.then((data) => {
-			const content = document.getElementById(`chatContent-${locationName}`);
-			data.messages.forEach((msg) => {
-				const div = document.createElement("div");
-				div.textContent = msg;
-				content.appendChild(div);
-			});
-			content.scrollTop = content.scrollHeight;
-		});
-}
+	const visitResponse = await fetch(
+		`/api/visit-spot?user-id=${userData.email}&spot-id=${spotId}`,
+		{}
+	);
+	const pointsGiven = (await visitResponse.json()).points_given;
 
-function sendMessage(locationName) {
-	const input = document.getElementById(`msgInput-${locationName}`);
-	const msg = input.value.trim();
-	if (!msg) return;
-	input.value = "";
+	if (pointsGiven > 0) {
+		spot.visited = true;
+		spot.marker.setIcon(markerIcon);
+		loadUserData();
+		await openSpot(spot); // Should not mess with UI here, but oh well
+		console.log("Passed openSpot() after unlocking spot.");
+		// animation
+		const spotPicture = document.querySelector(".spot-icon");
+		spotPicture.classList.add("spot-unlock-animation");
+		// score
+		setTimeout(() => {
+			const pointsContainer = document.createElement("div");
+			pointsContainer.classList.add("spot-points-given");
+			pointsContainer.innerHTML = `
+				+${pointsGiven}
+				<img src="/static/images/point.svg" width="40" height="40" alt="points icon" class="points-icon" />
+			`;
+			spotPicture.parentElement.appendChild(pointsContainer);
+		}, 1000);
+	}
 }
 
 function refreshLocation(pos) {
 	console.log("Location updated:", pos.coords.latitude, pos.coords.longitude);
 	userMarker.setLatLng([pos.coords.latitude, pos.coords.longitude]);
-	// map.setView([userMarker._latlng.lat, userMarker._latlng.lng], map.getZoom());
 }
 
 function openMap() {
@@ -180,32 +175,85 @@ function openMap() {
 	map.setView([userMarker._latlng.lat, userMarker._latlng.lng], 14);
 }
 
-function openSpot(spot) {
-	closeAllPopups();
-	if (document.getElementById(`popup-spot`)) return;
+async function openSpot(spot) {
 	const profilePopup = document.createElement("div");
 	profilePopup.className = "popup";
 	profilePopup.id = `popup-spot`;
+
+	const iconClasses = spot.visited ? "spot-icon" : "spot-icon spot-undiscovered";
 	let html = `
 		<span class="popup-close" onclick="closeAllPopups()">x</span>
 		<div class="popup-header">
-			<img class="spot-picture" src="/static/images/landmark.svg" width="200" height="200" alt="profile picture">
+			<img class="${iconClasses}" src="/static/images/landmark.svg" width="200" height="200" alt="profile picture">
 			<div class="spot-name">${spot.name}</div>
 	`;
-	if (spot.visited) {
-		html += `Visited`;
+
+	// strong candidate for worst code ever written
+	if (userMarker.getLatLng().distanceTo(spot.marker.getLatLng()) <= UNLOCK_RANGE) {
+		if (spot.visited) {
+			html += `Leave a message for the next visitors!`;
+			// Chat box
+			html += await getChatBox(spot);
+		} else {
+			html += `
+				<button class="primary-button" onclick="unlockSpot(${spot.id});">Discover</button>
+			`;
+		}
 	} else {
-		html += `Not visited yet`;
+		if (spot.visited) {
+			html += `You have already discovered this spot.`;
+		} else {
+			html += `Move closer to this spot to discover it!`;
+		}
 	}
+	html += getNavbarSpacer();
 	html += `</div>`;
 	profilePopup.innerHTML = html;
+
+	const popupsToClose = getAllPopups();
+	closePopups(popupsToClose);
 	document.body.insertBefore(profilePopup, navbar);
+	console.log("Opened spot:", spot.name);
+}
+
+async function getChatBox(spot) {
+	let html = `
+		<div class="spot-chat-container">
+		<div class="spot-chat-title">The Wall of Messages</div>
+	`;
+
+	const messagesResponse = await fetch(`/api/spot-messages?spot-id=${encodeURIComponent(spot.id)}`);
+	const messages = (await messagesResponse.json()).messages;
+	for (const message of messages) {
+		html += `<div class="spot-chat-message">${message}</div>`;
+	}
+
+	html += `
+		<div class="spot-chat-input-container">
+			<input type="text" id="spot-chat-content-${spot.id}" placeholder="I was here..." />
+			<button class="primary-button" onclick="sendMessage(${spot.id})">➤</button>
+		</div>
+	`;
+
+	html += `</div>`;
+
+	return html;
+}
+
+async function sendMessage(spotId) {
+	const input = document.getElementById(`spot-chat-content-${spotId}`);
+	const msg = input.value.trim();
+	if (!msg) return;
+	await fetch(
+		`/api/spot-leave-message?user-id=${encodeURIComponent(
+			userData.email
+		)}&spot-id=${encodeURIComponent(spotId)}&message=${encodeURIComponent(msg)}`
+	);
+	input.value = "";
+	openSpot(culturalLocations.find((s) => s.id === spotId));
 }
 
 function openProfile() {
-	closeAllPopups();
-	if (document.getElementById(`popup-profile`)) return;
-
 	const progressPercent =
 		Math.floor((userData.unlocked_spots.length / culturalLocations.length) * 100) + "%";
 	const profilePopup = document.createElement("div");
@@ -235,13 +283,13 @@ function openProfile() {
 			</div>
 		</div>
 	`;
+
+	const popupsToClose = getAllPopups();
 	document.body.insertBefore(profilePopup, navbar);
+	closePopups(popupsToClose);
 }
 
 async function openLeaderboard() {
-	closeAllPopups();
-	if (document.getElementById(`popup-leaderboard`)) return;
-
 	const leaderboardPopup = document.createElement("div");
 	leaderboardPopup.className = "popup";
 	leaderboardPopup.id = `popup-leaderboard`;
@@ -264,17 +312,31 @@ async function openLeaderboard() {
 			</li>
 		`;
 	}
-	html += `<div style="height:${navbar.offsetHeight}px"></div>`; // spacer for navbar
+	html += getNavbarSpacer();
 	html += `</ol></div>`;
 	leaderboardPopup.innerHTML = html;
+
+	const popupsToClose = getAllPopups();
 	document.body.insertBefore(leaderboardPopup, navbar);
+	closePopups(popupsToClose);
+}
+
+function getAllPopups() {
+	return document.querySelectorAll(".popup");
+}
+
+function closePopups(popups) {
+	for (const popup of popups) {
+		popup.remove();
+	}
 }
 
 function closeAllPopups() {
-	const popups = document.getElementsByClassName("popup");
-	while (popups.length > 0) {
-		popups[0].remove();
-	}
+	closePopups(getAllPopups());
+}
+
+function getNavbarSpacer() {
+	return `<div style="height:${navbar.offsetHeight * 2}px"></div>`;
 }
 
 function truncate(str, maxLength) {
