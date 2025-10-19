@@ -1,1 +1,2 @@
-__pycache__/databases.cpython-310.pyc
+__pycache__/*
+cache/*
