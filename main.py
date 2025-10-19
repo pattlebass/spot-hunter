@@ -116,5 +116,10 @@ def api_leaderboard():
     leaderboard = databases.get_leaderboard()
     return {"leaderboard": leaderboard}
 
+@app.route("/api/all-spots")
+def api_all_spots():
+    spots = databases.get_spots_with_columns()
+    return {"spots": spots}
+
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)

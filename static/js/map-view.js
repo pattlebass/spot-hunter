@@ -84,14 +84,10 @@ async function init() {
 }
 
 async function loadSpots() {
-	const spotIdsResponse = await fetch("/api/all-spot-ids");
-	const spotIds = (await spotIdsResponse.json()).spots;
-	for (const spotId of spotIds) {
-		const infoResponse = await fetch(`/api/spot?spot-id=${spotId}`);
-		const spot = (await infoResponse.json()).spot;
-
-		spot["visited"] = userData.unlocked_spots.includes(spotId);
-
+	const spotResponse = await fetch("/api/all-spots");
+	const spots = (await spotResponse.json()).spots;
+	for (const spot of spots) {
+		spot["visited"] = userData.unlocked_spots.includes(spot.spot_id);
 		culturalLocations.push(spot);
 	}
 }
