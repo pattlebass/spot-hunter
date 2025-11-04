@@ -20,7 +20,7 @@ Statuile, monumentele si cladirile istorice apar in aplicatie ca Spoturi.
 Utilizatorii primesc puncte cand viziteaza Spoturi si concureaza cu prietenii lor!
 
 ## Echipa
-- Stefan Fabian
+- Stefanica Fabian
 - Tigae Adrian
 - Preda Iustin
 - Stoica Alexander
